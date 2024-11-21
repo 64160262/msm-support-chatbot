@@ -22,7 +22,7 @@ nltk.download('punkt')
 # Load the MRC pipeline
 mrcpipeline = pipeline("question-answering", model="MyMild/finetune_iapp_thaiqa")
 
-# Define university-related FAQs
+# Define msm-related FAQs
 msm_rules = {
     "เปลี่ยนสถานะ สถานะลูกบ้าน สถานะ เปลี่ยนสถานะลูกบ้านยังไง เปลี่ยนสถานะลูกบ้านทำอย่างไร": """ขั้นตอนการเปลี่ยนสถานะลูกบ้าน
     1. เลือกเมนูการเปลี่ยนสถานะ
@@ -47,14 +47,14 @@ msm_rules = {
         - จากนั้นรอการอนุมัติสิทธิ์การเข้าใช้งานแอปพลิเคชัน
     """,
 
-    "Smartyทำอะไรได้บ้าง ฟีจเจอร์": """ฟีจเจอร์การใช้งานของ Smarty
+    "SMARTY ทำอะไรได้บ้าง ฟีจเจอร์": """ฟีจเจอร์การใช้งานของ Smarty
     1. สามารถเช็คยอดค่าใช้จ่าย ด้วยเมนู "จ่ายค่าส่วนกลาง"
     2. สามารถชำระค่าส่วนกลาง และรับใบเสร็จได้ทันที
     3. ดูประวัติการชำระค่าส่วนกลาง
     4. ดูการจัดส่งพัสดุ (เฉพาะบริการจัดส่งพัสดุ ไปรษณีย์ไทย เท่านั้น)
     """,
 
-    "จ่ายค่าส่วนกลาง ชำระค่าส่วนกลาง" :"""สามารถชำระค่าส่วนกลางได้ผ่าน Smarty Applicantion และรับใบเสร็จได้ทันที ผ่านเมนูค้างชำระ """,
+    "ส่วนกลาง ค่าส่วนกลาง จ่ายค่าส่วนกลาง ชำระค่าส่วนกลาง" :"""สามารถชำระค่าส่วนกลางได้ผ่าน Smarty Applicantion และรับใบเสร็จได้ทันที ผ่านเมนูค้างชำระ """,
 
     "การจัดส่งพัสดุ" : """Smarty Applicantion สามารถติดตามการจัดส่งพัสดุ (เฉพาะบริการจัดส่งพัสดุ ไปรษณีย์ไทย เท่านั้น)""",
 
@@ -65,54 +65,77 @@ msm_rules = {
     """,
 
     "ลงทะเบียนไม่ได้": """กรณีทำการลงทะเบียนใช้งาน Smarty ไม่ได้ 
-    ให้ลูกทำบ้านทำการแจ้งรายละเอียดใน Form คนตกหล่นที่ Form Smart Living
+    ให้ลูกบ้านทำการแจ้งรายละเอียดใน Form คนตกหล่นที่ Form Smart Living
     """,
-    # "ขั้นตอนการลงทะเบียน ลงทะเบียนยังไง ลงทะเบียน": "https://cdn.discordapp.com/attachments/1189168145244618753/1307927834387415070/openPreregister.png?ex=673eb937&is=673d67b7&hm=81611e8b060e68d289a146a549171c0315296a8e9eab06724af5b3d6e7c716d7&",
+   
     "ข้อมูลส่วนตัว เปลี่ยนแปลงรายละเอียด": """กรณีลูกบ้านต้องการเปลี่ยนแปลงรายละเอียดข้อมูลส่วนตัว 
-    ให้ลูกทำบ้านทำการแจ้งรายละเอียดใน Form Smart Living
+    ให้ลูกบ้านทำการแจ้งรายละเอียดใน Form Smart Living
     """,
-
-    # "สวัสดี Hi Hello หวัดดี ดีจ้า" : "สวัสดีครับ/ค่ะ🙏🏻 นี่คือ MSMBot💻 ที่จะช่วยตอบคำถามเกี่ยวกับ Smarty Support Hello there This is MSMBot💻 that'll help to answer question about Smarty Application",
 
     "ขอบคุณ THANKS THX": """ขอบคุณครับ/ค่ะ 🙇🏻 ที่ใช้งาน MSMBot, Thanks you for using our MSMBot💻
     """
 }
 
-# Preprocess university rules keys for better matching
+# Preprocess msm rules keys for better matching
 preprocessed_msm_rules = {pythainlp.util.normalize(keyword): answer for keyword, answer in msm_rules.items()}
 
 # Create context from all answers in msm_rules
-university_context = ' '.join(preprocessed_msm_rules.values())
+msm_context = ' '.join(preprocessed_msm_rules.values())
 
-# Function to handle university questions
-def handle_university_question(question: str) -> str:
-    # Check if the input consists of special characters only
-    if re.match(r'^[\W_]+$', question):
-        return "ขออภัยไม่สามารถตอบคำถามนี้ได้🙇🏻🙏🏻"
-    else:
-        question = question.upper()
-        matched_key = None
-        max_matched_tokens = 0
+
+def find_similar_keywords(question: str, context: dict, threshold: float = 0.2) -> str:
+    # Tokenize the question
+    question_tokens = word_tokenize(question.lower())
+    
+    best_match = None
+    highest_score = 0
+
+    for key, value in context.items():
+        key_tokens = word_tokenize(key.lower())
         
-        if question in msm_rules:
-            return msm_rules[question]
-        else:
-            # Tokenize the question
-            tokens = word_tokenize(question)
-            # Check for substring matches
-            for key in msm_rules:
-                matched_tokens = sum(1 for token in tokens if token in key)
-                if matched_tokens > max_matched_tokens:
-                    max_matched_tokens = matched_tokens
-                    matched_key = key
-                
-            # If a matching key is found, return its corresponding value
-            if matched_key:
-                return msm_rules[matched_key]
-            
-            # If no exact or substring match is found, use the model
-            answer = mrcpipeline(question=question, context=university_context)
-            return answer['answer']
+        # Calculate similarity score based on token overlap
+        overlap = len(set(question_tokens) & set(key_tokens))
+        score = overlap / len(key_tokens)  # Normalized by key length
+        
+        if score > highest_score and score >= threshold:
+            highest_score = score
+            best_match = value
+
+    return best_match if best_match else "ขออภัยไม่สามารถตอบคำถามนี้ได้🙇🏻🙏🏻"
+
+
+def handle_msm_question(question: str) -> str:
+    # Normalize and preprocess the question
+    question = question.strip()  # Remove leading/trailing spaces
+    print(f"Received question: {question}")  # Log the raw question
+
+    if not question or re.match(r'^[\W_]+$', question):  # Empty or special characters only
+        print("Input is empty or contains only special characters.")  # Log case
+        return "ขออภัยไม่สามารถตอบคำถามนี้ได้🙇🏻🙏🏻"
+
+    question = question.upper()
+    print(f"Normalized question: {question}")  # Log the normalized question
+
+    # First, check for an exact match in the FAQ rules (case insensitive)
+    for key, answer in msm_rules.items():
+        if pythainlp.util.normalize(question) == pythainlp.util.normalize(key):
+            print(f"Exact match found: {key}")  # Log exact match
+            return answer
+
+    # Tokenize the question
+    tokens = word_tokenize(question)
+    print(f"Tokenized question: {tokens}")  # Log tokenized question
+
+    # Try matching keywords using the improved similarity function
+    matched_context = find_similar_keywords(question, msm_rules, threshold=0.2)
+    if matched_context:
+        print(f"Matched context: {matched_context}")  # Log matched context
+        return matched_context
+
+    # Fallback response if no match found
+    print("No suitable answer found. Returning fallback response.")  # Log fallback
+    return "ขออภัยไม่สามารถตอบคำถามนี้ได้🙇🏻🙏🏻"
+
 
 # FastAPI Endpoints
 
@@ -124,9 +147,9 @@ async def verify_line_webhook(request: Request):
         return JSONResponse(content={"challenge": challenge}, status_code=200)
     return JSONResponse(content={"message": "Welcome to the chatbot API"}, status_code=200)
 
-@app.post("/university")
-async def university_chatbot(request: Request):
-    """Handle POST requests for the university chatbot"""
+@app.post("/msm")
+async def msm_chatbot(request: Request):
+    """Handle POST requests for the msm chatbot"""
     try:
         # Try to get data from multiple sources
         message = None
@@ -153,7 +176,7 @@ async def university_chatbot(request: Request):
             )
 
         print(f"Received message: {message}")  # Debug print
-        answer = handle_university_question(message)
+        answer = handle_msm_question(message)
         return {"answer": answer}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -190,7 +213,7 @@ def handle_text_message(event):
             )
             return
 
-        answer = handle_university_question(user_message)
+        answer = handle_msm_question(user_message)
         line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text=answer)
