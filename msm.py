@@ -54,13 +54,45 @@ msm_rules = {
     4. ดูการจัดส่งพัสดุ (เฉพาะบริการจัดส่งพัสดุ ไปรษณีย์ไทย เท่านั้น)
     """,
 
+    "เจ้าของห้อง เจ้าของ จขห จข":"""ขั้นตอนการเปลี่ยนสถานะลูกบ้าน
+    1. เลือกเมนูการเปลี่ยนสถานะ
+    2. เลือกปุ่ม "เพิ่มโครงการ +"
+    3. กรอกข้อมูลโครงการที่ต้องการลงทะเบียน
+
+    กรณีเจ้าของห้อง:
+        - ให้นำเอกสารดังต่อไปนี้ จัดส่งตามที่อยู่ … 
+        - โดยประดับอากรสแตมป์ 30 บาท""",
+
+    "ผู้เช่า ผช":"""ขั้นตอนการเปลี่ยนสถานะลูกบ้าน
+    1. เลือกเมนูการเปลี่ยนสถานะ
+    2. เลือกปุ่ม "เพิ่มโครงการ +"
+    3. กรอกข้อมูลโครงการที่ต้องการลงทะเบียน
+
+    กรณีผู้เช่า:
+        - ให้ทำการดาวน์โหลดหนังสือยินยอมให้ใช้บริการ Smarty Application 
+        - กรอกข้อมูลให้ครบถ้วน 
+        - จากนั้นแนบไฟล์ดังกล่าว 
+        - พร้อมทั้งแนบสำเนาบัตรประชาชนเจ้าของห้อง
+        - จากนั้นรอการอนุมัติสิทธิ์การเข้าใช้งานแอปพลิเคชัน""",
+
+    "ผู้รับมอบอำนาจ ผมอจ มอบอำนาจ":"""ขั้นตอนการเปลี่ยนสถานะลูกบ้าน
+    1. เลือกเมนูการเปลี่ยนสถานะ
+    2. เลือกปุ่ม "เพิ่มโครงการ +"
+    3. กรอกข้อมูลโครงการที่ต้องการลงทะเบียน
+
+    กรณีผู้รับมอบอำนาจ:
+        - ให้ทำการดาวน์โหลดหนังสือมอบอำนาจ ตามไฟล์ที่ระบุ 
+        - กรอกข้อมูลให้ครบถ้วน 
+        - จากนั้นแนบไฟล์ดังกล่าว 
+        - พร้อมทั้งแนบสำเนาบัตรประชาชนเจ้าของห้อง""",
+
     "ส่วนกลาง ค่าส่วนกลาง จ่ายค่าส่วนกลาง ชำระค่าส่วนกลาง" :"""สามารถชำระค่าส่วนกลางได้ผ่าน Smarty Applicantion และรับใบเสร็จได้ทันที ผ่านเมนูค้างชำระ """,
 
     "การจัดส่งพัสดุ" : """Smarty Applicantion สามารถติดตามการจัดส่งพัสดุ (เฉพาะบริการจัดส่งพัสดุ ไปรษณีย์ไทย เท่านั้น)""",
 
     "ประวัติการชำระ ประวัติการชำระค่าส่วนกลาง ประวัติการชำระ ประวัติการจ่าย": """สามารถดูประวัติการชำระค่าส่วนกลางได้จากเมนู ประวัติการชำระ""",
 
-    "สแกนบัตร บัตรประชาชน": """กรณีต้องการลงทะเบียนแต่ไม่สามารถสแกนบัตรประชาชนได้ (แจ้งว่า Error)
+    "สแกน บัตรประชาชน": """กรณีต้องการลงทะเบียนแต่ไม่สามารถสแกนบัตรประชาชนได้ (แจ้งว่า Error)
     เบื้องต้นให้ทำการอัพเดท version ของแอปพลิเคชัน ให้เป็นเวอร์ชันล่าสุด
     """,
 
@@ -72,7 +104,7 @@ msm_rules = {
     ให้ลูกบ้านทำการแจ้งรายละเอียดใน Form Smart Living
     """,
 
-    "ขอบคุณ THANKS THX": """ขอบคุณครับ/ค่ะ 🙇🏻 ที่ใช้งาน MSMBot, Thanks you for using our MSMBot💻
+    "ขอบ ขอบคุณ THANKS THX": """ขอบคุณครับ/ค่ะ 🙇🏻 ที่ใช้งาน MSMBot, Thanks you for using our MSMBot💻
     """
 }
 
@@ -83,18 +115,36 @@ preprocessed_msm_rules = {pythainlp.util.normalize(keyword): answer for keyword,
 msm_context = ' '.join(preprocessed_msm_rules.values())
 
 
+# def find_similar_keywords(question: str, context: dict, threshold: float = 0.2) -> str:
+#     # Tokenize the question
+#     question_tokens = word_tokenize(question.lower())
+    
+#     best_match = None
+#     highest_score = 0
+
+#     for key, value in context.items():
+#         key_tokens = word_tokenize(key.lower())
+        
+#         # Calculate similarity score based on token overlap
+#         overlap = len(set(question_tokens) & set(key_tokens))
+#         score = overlap / len(key_tokens)  # Normalized by key length
+        
+#         if score > highest_score and score >= threshold:
+#             highest_score = score
+#             best_match = value
+
+#     return best_match if best_match else "ขออภัยไม่สามารถตอบคำถามนี้ได้🙇🏻🙏🏻"
+
 def find_similar_keywords(question: str, context: dict, threshold: float = 0.2) -> str:
-    # Tokenize the question
-    question_tokens = word_tokenize(question.lower())
+    question_tokens = set(word_tokenize(pythainlp.util.normalize(question.lower())))
     
     best_match = None
     highest_score = 0
 
     for key, value in context.items():
-        key_tokens = word_tokenize(key.lower())
+        key_tokens = set(word_tokenize(pythainlp.util.normalize(key.lower())))
         
-        # Calculate similarity score based on token overlap
-        overlap = len(set(question_tokens) & set(key_tokens))
+        overlap = len(question_tokens & key_tokens)
         score = overlap / len(key_tokens)  # Normalized by key length
         
         if score > highest_score and score >= threshold:
@@ -103,39 +153,129 @@ def find_similar_keywords(question: str, context: dict, threshold: float = 0.2) 
 
     return best_match if best_match else "ขออภัยไม่สามารถตอบคำถามนี้ได้🙇🏻🙏🏻"
 
+# def handle_msm_question(question: str) -> str:
+#     # Normalize and preprocess the question
+#     question = question.strip()  # Remove leading/trailing spaces
+#     print(f"Received question: {question}")  # Log the raw question
+
+#     if not question or re.match(r'^[\W_]+$', question):  # Empty or special characters only
+#         print("Input is empty or contains only special characters.")  # Log case
+#         return "ขออภัยไม่สามารถตอบคำถามนี้ได้🙇🏻🙏🏻"
+
+#     question = question.upper()
+#     print(f"Normalized question: {question}")  # Log the normalized question
+
+#     # First, check for an exact match in the FAQ rules (case insensitive)
+#     for key, answer in msm_rules.items():
+#         if pythainlp.util.normalize(question) == pythainlp.util.normalize(key):
+#             print(f"Exact match found: {key}")  # Log exact match
+#             return answer
+
+#     # Tokenize the question
+#     tokens = word_tokenize(question)
+#     print(f"Tokenized question: {tokens}")  # Log tokenized question
+
+#     # Try matching keywords using the improved similarity function
+#     matched_context = find_similar_keywords(question, msm_rules, threshold=0.2)
+#     if matched_context:
+#         print(f"Matched context: {matched_context}")  # Log matched context
+#         return matched_context
+
+#     # Fallback response if no match found
+#     print("No suitable answer found. Returning fallback response.")  # Log fallback
+#     return "ขออภัยไม่สามารถตอบคำถามนี้ได้🙇🏻🙏🏻"
+
+def check_time_period(text):
+    time_keywords = {
+        'เดือนนี้': 'current_month',
+        'เดือนที่แล้ว': 'last_month',
+        'เดือนหน้า': 'next_month',
+        'วันนี้': 'today'
+    }
+    
+    for keyword in time_keywords:
+        if keyword in text:
+            return time_keywords[keyword]
+    return None
+
+# เพิ่มฟังก์ชันใหม่สำหรับปรับแต่งคำตอบตามช่วงเวลา
+def modify_answer_with_time_period(answer: str, time_period: str) -> str:
+    time_prefix = {
+        'current_month': 'สำหรับเดือนนี้ ',
+        'last_month': 'สำหรับเดือนที่แล้ว ',
+        'next_month': 'สำหรับเดือนหน้า ',
+        'today': 'สำหรับวันนี้ '
+    }
+    return f"{time_prefix.get(time_period, '')}{answer}"
 
 def handle_msm_question(question: str) -> str:
-    # Normalize and preprocess the question
-    question = question.strip()  # Remove leading/trailing spaces
-    print(f"Received question: {question}")  # Log the raw question
-
-    if not question or re.match(r'^[\W_]+$', question):  # Empty or special characters only
-        print("Input is empty or contains only special characters.")  # Log case
+    print(f"Original question: {question}")
+    question = question.strip()
+    print(f"Stripped question: {question}")
+    
+    if not question or re.match(r'^[\W_]+$', question):
+        print("Input is empty or contains only special characters.")
         return "ขออภัยไม่สามารถตอบคำถามนี้ได้🙇🏻🙏🏻"
 
-    question = question.upper()
-    print(f"Normalized question: {question}")  # Log the normalized question
+    # ตรวจสอบคำเกี่ยวกับเวลา
+    time_period = check_time_period(question)
+    normalized_question = pythainlp.util.normalize(question.upper())
+    print(f"Normalized question: {normalized_question}")
+    
+    # ถ้ามีการระบุเวลา ให้เพิ่มข้อความเกี่ยวกับเวลาในคำตอบ
+    if time_period:
+        # Check for exact matches first
+        for key, answer in msm_rules.items():
+            normalized_key = pythainlp.util.normalize(key.upper())
+            if normalized_question == normalized_key:
+                print(f"Exact match found: {key}")
+                return modify_answer_with_time_period(answer, time_period)
 
-    # First, check for an exact match in the FAQ rules (case insensitive)
-    for key, answer in msm_rules.items():
-        if pythainlp.util.normalize(question) == pythainlp.util.normalize(key):
-            print(f"Exact match found: {key}")  # Log exact match
-            return answer
+        # If no exact match, check for partial matches
+        for key, answer in msm_rules.items():
+            normalized_key = pythainlp.util.normalize(key.upper())
+            key_words = set(word_tokenize(normalized_key))
+            question_words = set(word_tokenize(normalized_question))
+            
+            overlap = len(key_words.intersection(question_words))
+            overlap_ratio = overlap / len(key_words)
+            
+            if overlap_ratio >= 0.5:
+                print(f"Partial match found: {key} (Overlap ratio: {overlap_ratio})")
+                return modify_answer_with_time_period(answer, time_period)
 
-    # Tokenize the question
-    tokens = word_tokenize(question)
-    print(f"Tokenized question: {tokens}")  # Log tokenized question
+        # If still no match, use find_similar_keywords
+        matched_context = find_similar_keywords(normalized_question, msm_rules, threshold=0.2)
+        if matched_context != "ขออภัยไม่สามารถตอบคำถามนี้ได้🙇🏻🙏🏻":
+            print(f"Similar keywords match found")
+            return modify_answer_with_time_period(matched_context, time_period)
+    else:
+        # ถ้าไม่มีการระบุเวลา ใช้ logic เดิม
+        for key, answer in msm_rules.items():
+            normalized_key = pythainlp.util.normalize(key.upper())
+            if normalized_question == normalized_key:
+                print(f"Exact match found: {key}")
+                return answer
 
-    # Try matching keywords using the improved similarity function
-    matched_context = find_similar_keywords(question, msm_rules, threshold=0.2)
-    if matched_context:
-        print(f"Matched context: {matched_context}")  # Log matched context
-        return matched_context
+        for key, answer in msm_rules.items():
+            normalized_key = pythainlp.util.normalize(key.upper())
+            key_words = set(word_tokenize(normalized_key))
+            question_words = set(word_tokenize(normalized_question))
+            
+            overlap = len(key_words.intersection(question_words))
+            overlap_ratio = overlap / len(key_words)
+            
+            if overlap_ratio >= 0.4:
+                print(f"Partial match found: {key} (Overlap ratio: {overlap_ratio})")
+                return answer
 
-    # Fallback response if no match found
-    print("No suitable answer found. Returning fallback response.")  # Log fallback
+        matched_context = find_similar_keywords(normalized_question, msm_rules, threshold=0.2)
+        if matched_context != "ขออภัยไม่สามารถตอบคำถามนี้ได้🙇🏻🙏🏻":
+            print(f"Similar keywords match found")
+            return matched_context
+
+    print("No suitable answer found. Returning fallback response.")
     return "ขออภัยไม่สามารถตอบคำถามนี้ได้🙇🏻🙏🏻"
-
 
 # FastAPI Endpoints
 
