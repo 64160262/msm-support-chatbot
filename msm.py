@@ -1,6 +1,5 @@
-from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi import FastAPI, Form, HTTPException, Request, Depends
 from fastapi.responses import JSONResponse
-from transformers import pipeline
 import re
 import nltk
 import pythainlp
@@ -8,6 +7,13 @@ from pythainlp.tokenize import word_tokenize
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
 from linebot.exceptions import LineBotApiError, InvalidSignatureError
 from linebot import LineBotApi, WebhookHandler
+from sqlalchemy.orm import Session
+from database import get_db
+from models import MsmRule
+import schemas
+from typing import Dict
+from pydantic import BaseModel
+from transformers import pipeline
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -22,168 +28,23 @@ nltk.download('punkt')
 # Load the MRC pipeline
 mrcpipeline = pipeline("question-answering", model="MyMild/finetune_iapp_thaiqa")
 
-# Define msm-related FAQs
-msm_rules = {
-    "เปลี่ยนสถานะ สถานะลูกบ้าน สถานะ เปลี่ยนสถานะลูกบ้านยังไง เปลี่ยนสถานะลูกบ้านทำอย่างไร": """ขั้นตอนการเปลี่ยนสถานะลูกบ้าน
-    1. เลือกเมนูการเปลี่ยนสถานะ
-    2. เลือกปุ่ม "เพิ่มโครงการ +"
-    3. กรอกข้อมูลโครงการที่ต้องการลงทะเบียน
-
-    กรณีเจ้าของห้อง:
-        - ให้นำเอกสารดังต่อไปนี้ จัดส่งตามที่อยู่ … 
-        - โดยประดับอากรสแตมป์ 30 บาท
-
-    กรณีผู้รับมอบอำนาจ:
-        - ให้ทำการดาวน์โหลดหนังสือมอบอำนาจ ตามไฟล์ที่ระบุ 
-        - กรอกข้อมูลให้ครบถ้วน 
-        - จากนั้นแนบไฟล์ดังกล่าว 
-        - พร้อมทั้งแนบสำเนาบัตรประชาชนเจ้าของห้อง
-
-    กรณีผู้เช่า:
-        - ให้ทำการดาวน์โหลดหนังสือยินยอมให้ใช้บริการ Smarty Application 
-        - กรอกข้อมูลให้ครบถ้วน 
-        - จากนั้นแนบไฟล์ดังกล่าว 
-        - พร้อมทั้งแนบสำเนาบัตรประชาชนเจ้าของห้อง
-        - จากนั้นรอการอนุมัติสิทธิ์การเข้าใช้งานแอปพลิเคชัน
-    """,
-
-    "SMARTY ทำอะไรได้บ้าง ฟีจเจอร์": """ฟีจเจอร์การใช้งานของ Smarty
-    1. สามารถเช็คยอดค่าใช้จ่าย ด้วยเมนู "จ่ายค่าส่วนกลาง"
-    2. สามารถชำระค่าส่วนกลาง และรับใบเสร็จได้ทันที
-    3. ดูประวัติการชำระค่าส่วนกลาง
-    4. ดูการจัดส่งพัสดุ (เฉพาะบริการจัดส่งพัสดุ ไปรษณีย์ไทย เท่านั้น)
-    """,
-
-    "เจ้าของห้อง เจ้าของ จขห จข":"""ขั้นตอนการเปลี่ยนสถานะลูกบ้าน
-    1. เลือกเมนูการเปลี่ยนสถานะ
-    2. เลือกปุ่ม "เพิ่มโครงการ +"
-    3. กรอกข้อมูลโครงการที่ต้องการลงทะเบียน
-
-    กรณีเจ้าของห้อง:
-        - ให้นำเอกสารดังต่อไปนี้ จัดส่งตามที่อยู่ … 
-        - โดยประดับอากรสแตมป์ 30 บาท""",
-
-    "ผู้เช่า ผช":"""ขั้นตอนการเปลี่ยนสถานะลูกบ้าน
-    1. เลือกเมนูการเปลี่ยนสถานะ
-    2. เลือกปุ่ม "เพิ่มโครงการ +"
-    3. กรอกข้อมูลโครงการที่ต้องการลงทะเบียน
-
-    กรณีผู้เช่า:
-        - ให้ทำการดาวน์โหลดหนังสือยินยอมให้ใช้บริการ Smarty Application 
-        - กรอกข้อมูลให้ครบถ้วน 
-        - จากนั้นแนบไฟล์ดังกล่าว 
-        - พร้อมทั้งแนบสำเนาบัตรประชาชนเจ้าของห้อง
-        - จากนั้นรอการอนุมัติสิทธิ์การเข้าใช้งานแอปพลิเคชัน""",
-
-    "ผู้รับมอบอำนาจ ผมอจ มอบอำนาจ":"""ขั้นตอนการเปลี่ยนสถานะลูกบ้าน
-    1. เลือกเมนูการเปลี่ยนสถานะ
-    2. เลือกปุ่ม "เพิ่มโครงการ +"
-    3. กรอกข้อมูลโครงการที่ต้องการลงทะเบียน
-
-    กรณีผู้รับมอบอำนาจ:
-        - ให้ทำการดาวน์โหลดหนังสือมอบอำนาจ ตามไฟล์ที่ระบุ 
-        - กรอกข้อมูลให้ครบถ้วน 
-        - จากนั้นแนบไฟล์ดังกล่าว 
-        - พร้อมทั้งแนบสำเนาบัตรประชาชนเจ้าของห้อง""",
-
-    "ส่วนกลาง ค่าส่วนกลาง จ่ายค่าส่วนกลาง ชำระค่าส่วนกลาง" :"""สามารถชำระค่าส่วนกลางได้ผ่าน Smarty Applicantion และรับใบเสร็จได้ทันที ผ่านเมนูค้างชำระ """,
-
-    "การจัดส่งพัสดุ" : """Smarty Applicantion สามารถติดตามการจัดส่งพัสดุ (เฉพาะบริการจัดส่งพัสดุ ไปรษณีย์ไทย เท่านั้น)""",
-
-    "ประวัติการชำระ ประวัติการชำระค่าส่วนกลาง ประวัติการชำระ ประวัติการจ่าย": """สามารถดูประวัติการชำระค่าส่วนกลางได้จากเมนู ประวัติการชำระ""",
-
-    "สแกน บัตรประชาชน": """กรณีต้องการลงทะเบียนแต่ไม่สามารถสแกนบัตรประชาชนได้ (แจ้งว่า Error)
-    เบื้องต้นให้ทำการอัพเดท version ของแอปพลิเคชัน ให้เป็นเวอร์ชันล่าสุด
-    """,
-
-    "ลงทะเบียนไม่ได้": """กรณีทำการลงทะเบียนใช้งาน Smarty ไม่ได้ 
-    ให้ลูกบ้านทำการแจ้งรายละเอียดใน Form คนตกหล่นที่ Form Smart Living
-    """,
-   
-    "ข้อมูลส่วนตัว เปลี่ยนแปลงรายละเอียด": """กรณีลูกบ้านต้องการเปลี่ยนแปลงรายละเอียดข้อมูลส่วนตัว 
-    ให้ลูกบ้านทำการแจ้งรายละเอียดใน Form Smart Living
-    """,
-
-    "ขอบ ขอบคุณ THANKS THX": """ขอบคุณครับ/ค่ะ 🙇🏻 ที่ใช้งาน MSMBot, Thanks you for using our MSMBot💻
-    """
-}
-
-# Preprocess msm rules keys for better matching
-preprocessed_msm_rules = {pythainlp.util.normalize(keyword): answer for keyword, answer in msm_rules.items()}
-
-# Create context from all answers in msm_rules
-msm_context = ' '.join(preprocessed_msm_rules.values())
-
-
-# def find_similar_keywords(question: str, context: dict, threshold: float = 0.2) -> str:
-#     # Tokenize the question
-#     question_tokens = word_tokenize(question.lower())
-    
-#     best_match = None
-#     highest_score = 0
-
-#     for key, value in context.items():
-#         key_tokens = word_tokenize(key.lower())
-        
-#         # Calculate similarity score based on token overlap
-#         overlap = len(set(question_tokens) & set(key_tokens))
-#         score = overlap / len(key_tokens)  # Normalized by key length
-        
-#         if score > highest_score and score >= threshold:
-#             highest_score = score
-#             best_match = value
-
-#     return best_match if best_match else "ขออภัยไม่สามารถตอบคำถามนี้ได้🙇🏻🙏🏻"
-
-def find_similar_keywords(question: str, context: dict, threshold: float = 0.2) -> str:
+def find_similar_keywords(question: str, msm_rules: dict, threshold: float = 0.2) -> str:
     question_tokens = set(word_tokenize(pythainlp.util.normalize(question.lower())))
     
     best_match = None
     highest_score = 0
 
-    for key, value in context.items():
+    for key, value in msm_rules.items():
         key_tokens = set(word_tokenize(pythainlp.util.normalize(key.lower())))
         
         overlap = len(question_tokens & key_tokens)
-        score = overlap / len(key_tokens)  # Normalized by key length
+        score = overlap / len(key_tokens) if key_tokens else 0
         
         if score > highest_score and score >= threshold:
             highest_score = score
             best_match = value
 
     return best_match if best_match else "ขออภัยไม่สามารถตอบคำถามนี้ได้🙇🏻🙏🏻"
-
-# def handle_msm_question(question: str) -> str:
-#     # Normalize and preprocess the question
-#     question = question.strip()  # Remove leading/trailing spaces
-#     print(f"Received question: {question}")  # Log the raw question
-
-#     if not question or re.match(r'^[\W_]+$', question):  # Empty or special characters only
-#         print("Input is empty or contains only special characters.")  # Log case
-#         return "ขออภัยไม่สามารถตอบคำถามนี้ได้🙇🏻🙏🏻"
-
-#     question = question.upper()
-#     print(f"Normalized question: {question}")  # Log the normalized question
-
-#     # First, check for an exact match in the FAQ rules (case insensitive)
-#     for key, answer in msm_rules.items():
-#         if pythainlp.util.normalize(question) == pythainlp.util.normalize(key):
-#             print(f"Exact match found: {key}")  # Log exact match
-#             return answer
-
-#     # Tokenize the question
-#     tokens = word_tokenize(question)
-#     print(f"Tokenized question: {tokens}")  # Log tokenized question
-
-#     # Try matching keywords using the improved similarity function
-#     matched_context = find_similar_keywords(question, msm_rules, threshold=0.2)
-#     if matched_context:
-#         print(f"Matched context: {matched_context}")  # Log matched context
-#         return matched_context
-
-#     # Fallback response if no match found
-#     print("No suitable answer found. Returning fallback response.")  # Log fallback
-#     return "ขออภัยไม่สามารถตอบคำถามนี้ได้🙇🏻🙏🏻"
 
 def check_time_period(text):
     time_keywords = {
@@ -198,83 +59,92 @@ def check_time_period(text):
             return time_keywords[keyword]
     return None
 
-# เพิ่มฟังก์ชันใหม่สำหรับปรับแต่งคำตอบตามช่วงเวลา
-def modify_answer_with_time_period(answer: str, time_period: str) -> str:
+# add func ans aobout time period
+def modify_response_with_time_period(response: str, time_period: str) -> str:
     time_prefix = {
         'current_month': 'สำหรับเดือนนี้ ',
         'last_month': 'สำหรับเดือนที่แล้ว ',
         'next_month': 'สำหรับเดือนหน้า ',
         'today': 'สำหรับวันนี้ '
     }
-    return f"{time_prefix.get(time_period, '')}{answer}"
+    return f"{time_prefix.get(time_period, '')}{response}"
 
-def handle_msm_question(question: str) -> str:
+def handle_msm_question(question: str, db: Session) -> str:
     print(f"Original question: {question}")
     question = question.strip()
     print(f"Stripped question: {question}")
+    
+    # ดึงข้อมูลจากฐานข้อมูล
+    rules = db.query(MsmRule).all()
+    msm_rules = {rule.keywords: rule.response for rule in rules}
+    
+    # เช็คคำถามเกี่ยวกับราคา
+    price_keywords = ['เท่าไหร่', 'เท่าไร', 'กี่บาท', 'ราคา']
+    if any(keyword in question for keyword in price_keywords):
+        return "ขออภัยไม่สามารถตอบคำถามนี้ได้🙇🏻🙏🏻 โปรดติดต่อผู้จัดการอาคาร หรือตรวจสอบรายละเอียดผ่านแอปพลิเคชัน Smarty ค่ะ"
     
     if not question or re.match(r'^[\W_]+$', question):
         print("Input is empty or contains only special characters.")
         return "ขออภัยไม่สามารถตอบคำถามนี้ได้🙇🏻🙏🏻"
 
-    # ตรวจสอบคำเกี่ยวกับเวลา
+    # เช็คช่วงเวลา
     time_period = check_time_period(question)
     normalized_question = pythainlp.util.normalize(question.upper())
     print(f"Normalized question: {normalized_question}")
     
-    # ถ้ามีการระบุเวลา ให้เพิ่มข้อความเกี่ยวกับเวลาในคำตอบ
+    # กรณีมีการระบุช่วงเวลา
     if time_period:
-        # Check for exact matches first
-        for key, answer in msm_rules.items():
+        # ตรวจสอบการตรงกันแบบ정확
+        for key, response in msm_rules.items():
             normalized_key = pythainlp.util.normalize(key.upper())
             if normalized_question == normalized_key:
                 print(f"Exact match found: {key}")
-                return modify_answer_with_time_period(answer, time_period)
+                return modify_response_with_time_period(response, time_period)
 
-        # If no exact match, check for partial matches
-        for key, answer in msm_rules.items():
+        # ถ้าไม่ตรงกันแบบ정확 ตรวจสอบการตรงกันบางส่วน
+        for key, response in msm_rules.items():
             normalized_key = pythainlp.util.normalize(key.upper())
             key_words = set(word_tokenize(normalized_key))
             question_words = set(word_tokenize(normalized_question))
             
             overlap = len(key_words.intersection(question_words))
-            overlap_ratio = overlap / len(key_words)
+            overlap_ratio = overlap / len(key_words) if key_words else 0
             
             if overlap_ratio >= 0.5:
                 print(f"Partial match found: {key} (Overlap ratio: {overlap_ratio})")
-                return modify_answer_with_time_period(answer, time_period)
+                return modify_response_with_time_period(response, time_period)
 
-        # If still no match, use find_similar_keywords
+        # ถ้ายังไม่พบ ใช้การค้นหาคำที่คล้ายกัน
         matched_context = find_similar_keywords(normalized_question, msm_rules, threshold=0.2)
         if matched_context != "ขออภัยไม่สามารถตอบคำถามนี้ได้🙇🏻🙏🏻":
             print(f"Similar keywords match found")
-            return modify_answer_with_time_period(matched_context, time_period)
+            return modify_response_with_time_period(matched_context, time_period)
     else:
-        # ถ้าไม่มีการระบุเวลา ใช้ logic เดิม
-        for key, answer in msm_rules.items():
+        # กรณีไม่มีการระบุช่วงเวลา
+        for key, response in msm_rules.items():
             normalized_key = pythainlp.util.normalize(key.upper())
             if normalized_question == normalized_key:
                 print(f"Exact match found: {key}")
-                return answer
+                return response
 
-        for key, answer in msm_rules.items():
+        for key, response in msm_rules.items():
             normalized_key = pythainlp.util.normalize(key.upper())
             key_words = set(word_tokenize(normalized_key))
             question_words = set(word_tokenize(normalized_question))
             
             overlap = len(key_words.intersection(question_words))
-            overlap_ratio = overlap / len(key_words)
+            overlap_ratio = overlap / len(key_words) if key_words else 0
             
             if overlap_ratio >= 0.4:
                 print(f"Partial match found: {key} (Overlap ratio: {overlap_ratio})")
-                return answer
+                return response
 
         matched_context = find_similar_keywords(normalized_question, msm_rules, threshold=0.2)
         if matched_context != "ขออภัยไม่สามารถตอบคำถามนี้ได้🙇🏻🙏🏻":
             print(f"Similar keywords match found")
             return matched_context
 
-    print("No suitable answer found. Returning fallback response.")
+    print("No suitable response found. Returning fallback response.")
     return "ขออภัยไม่สามารถตอบคำถามนี้ได้🙇🏻🙏🏻"
 
 # FastAPI Endpoints
@@ -287,38 +157,21 @@ async def verify_line_webhook(request: Request):
         return JSONResponse(content={"challenge": challenge}, status_code=200)
     return JSONResponse(content={"message": "Welcome to the chatbot API"}, status_code=200)
 
+# เพิ่ม class สำหรับ request body
+class ChatMessage(BaseModel):
+    message: str
+
 @app.post("/msm")
-async def msm_chatbot(request: Request):
+async def msm_chatbot(chat_message: ChatMessage, db: Session = Depends(get_db)):
     """Handle POST requests for the msm chatbot"""
     try:
-        # Try to get data from multiple sources
-        message = None
-        
-        # Check content type
-        content_type = request.headers.get("content-type", "").lower()
-        
-        if "application/json" in content_type:
-            # Handle JSON data
-            body = await request.json()
-            message = body.get("message")
-        elif "application/x-www-form-urlencoded" in content_type or "multipart/form-data" in content_type:
-            # Handle form data
-            form = await request.form()
-            message = form.get("message")
-        else:
-            # Try query parameters
-            message = request.query_params.get("message")
+        if not chat_message.message:
+            raise HTTPException(status_code=400, detail="Message cannot be empty")
 
-        if not message:
-            raise HTTPException(
-                status_code=400,
-                detail="Message not found. Please provide a message in the request body, form data, or query parameters."
-            )
-
-        print(f"Received message: {message}")  # Debug print
-        answer = handle_msm_question(message)
-        return {"answer": answer}
+        response = handle_msm_question(chat_message.message, db)
+        return {"response": response}
     except Exception as e:
+        print(f"Error: {str(e)}")  # เพิ่ม log
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/webhook")
@@ -353,10 +206,10 @@ def handle_text_message(event):
             )
             return
 
-        answer = handle_msm_question(user_message)
+        response = handle_msm_question(user_message)
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text=answer)
+            TextSendMessage(text=response)
         )
     except Exception as e:
         line_bot_api.reply_message(
@@ -380,6 +233,19 @@ async def general_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"detail": "An internal server error occurred"}
     )
+
+@app.post("/admin/rules/", response_model=schemas.MsmRule)
+def create_rule(rule: schemas.MsmRuleCreate, db: Session = Depends(get_db)):
+    db_rule = MsmRule(**rule.dict())
+    db.add(db_rule)
+    db.commit()
+    db.refresh(db_rule)
+    return db_rule
+
+@app.get("/admin/rules/", response_model=list[schemas.MsmRule])
+def read_rules(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    rules = db.query(MsmRule).offset(skip).limit(limit).all()
+    return rules
 
 # Run the application
 if __name__ == "__main__":
