@@ -59,7 +59,6 @@ def check_time_period(text):
             return time_keywords[keyword]
     return None
 
-# add func ans aobout time period
 def modify_response_with_time_period(response: str, time_period: str) -> str:
     time_prefix = {
         'current_month': 'สำหรับเดือนนี้ ',
@@ -148,22 +147,18 @@ def handle_msm_question(question: str, db: Session) -> str:
     return "ขออภัยไม่สามารถตอบคำถามนี้ได้🙇🏻🙏🏻"
 
 # FastAPI Endpoints
-
 @app.get("/")
 async def verify_line_webhook(request: Request):
-    """Handle GET requests for webhook verification"""
     challenge = request.query_params.get("hub.challenge")
     if challenge:
         return JSONResponse(content={"challenge": challenge}, status_code=200)
     return JSONResponse(content={"message": "Welcome to the chatbot API"}, status_code=200)
 
-# เพิ่ม class สำหรับ request body
 class ChatMessage(BaseModel):
     message: str
 
 @app.post("/msm")
 async def msm_chatbot(chat_message: ChatMessage, db: Session = Depends(get_db)):
-    """Handle POST requests for the msm chatbot"""
     try:
         if not chat_message.message:
             raise HTTPException(status_code=400, detail="Message cannot be empty")
@@ -171,12 +166,11 @@ async def msm_chatbot(chat_message: ChatMessage, db: Session = Depends(get_db)):
         response = handle_msm_question(chat_message.message, db)
         return {"response": response}
     except Exception as e:
-        print(f"Error: {str(e)}")  # เพิ่ม log
+        print(f"Error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/webhook")
 async def line_webhook(request: Request):
-    """Handle LINE Webhook"""
     try:
         body = await request.body()
         body_text = body.decode("utf-8")
@@ -193,20 +187,19 @@ async def line_webhook(request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# LINE bot message handler
 @handler.add(MessageEvent, message=TextMessage)
 def handle_text_message(event):
-    """Handle LINE text messages"""
     try:
         user_message = event.message.text
         if not user_message:
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text="Please provide a valid question.")
+                TextSendMessage(text="กรุณาระบุคำถามค่ะ")
             )
             return
 
-        response = handle_msm_question(user_message)
+        db = next(get_db())
+        response = handle_msm_question(user_message, db)
         line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text=response)
@@ -214,13 +207,11 @@ def handle_text_message(event):
     except Exception as e:
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text=f"An error occurred: {str(e)}")
+            TextSendMessage(text=f"เกิดข้อผิดพลาด: {str(e)}")
         )
 
-# Add error handlers
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
-    """Handle HTTP exceptions"""
     return JSONResponse(
         status_code=exc.status_code,
         content={"detail": exc.detail}
@@ -228,10 +219,9 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
-    """Handle general exceptions"""
     return JSONResponse(
         status_code=500,
-        content={"detail": "An internal server error occurred"}
+        content={"detail": "เกิดข้อผิดพลาดภายในระบบ"}
     )
 
 @app.post("/admin/rules/", response_model=schemas.MsmRule)
@@ -247,7 +237,6 @@ def read_rules(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     rules = db.query(MsmRule).offset(skip).limit(limit).all()
     return rules
 
-# Run the application
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
