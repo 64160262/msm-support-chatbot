@@ -93,14 +93,14 @@ def handle_msm_question(question: str, db: Session) -> str:
     
     # กรณีมีการระบุช่วงเวลา
     if time_period:
-        # ตรวจสอบการตรงกันแบบ정확
+        # ตรวจสอบการตรงกันมั้ย
         for key, response in msm_rules.items():
             normalized_key = pythainlp.util.normalize(key.upper())
             if normalized_question == normalized_key:
                 print(f"Exact match found: {key}")
                 return modify_response_with_time_period(response, time_period)
 
-        # ถ้าไม่ตรงกันแบบ정확 ตรวจสอบการตรงกันบางส่วน
+        # ถ้าไม่ตรงกัน ตรวจสอบการตรงกันบางส่วน
         for key, response in msm_rules.items():
             normalized_key = pythainlp.util.normalize(key.upper())
             key_words = set(word_tokenize(normalized_key))
