@@ -118,6 +118,16 @@ def handle_msm_question(question: str, db: Session) -> str:
         if matched_context != "ขออภัยไม่สามารถตอบคำถามนี้ได้🙇🏻🙏🏻":
             print(f"Similar keywords match found")
             return modify_response_with_time_period(matched_context, time_period)
+        
+            # ใช้ mrcpipeline ในการตอบคำถามกรณีไม่มีคำตอบ
+        context = " ".join(msm_rules.values())  # รวมข้อความทั้งหมดจาก msm_rules
+        answer = mrcpipeline(question=normalized_question, context=context)
+        if answer['score'] > 0.2:  # กำหนดคะแนนขั้นต่ำสำหรับการตอบ
+            return answer['answer']
+
+        print("No suitable response found. Returning fallback response.")
+        return "ขออภัยไม่สามารถตอบคำถามนี้ได้🙇🏻🙏🏻"
+
     else:
         # กรณีไม่มีการระบุช่วงเวลา
         for key, response in msm_rules.items():
